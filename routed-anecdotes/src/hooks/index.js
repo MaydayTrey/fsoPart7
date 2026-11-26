@@ -1,21 +1,46 @@
-import { useState } from "react"
+import { useState, useEffect } from 'react'
+import anecdoteService from '../services/anecdotes'
 
+export const useField = (type) => {
+  const [value, setValue] = useState('')
 
-const useField = (type) => {
-    const [value, setValue] = useState('')
+  const onChange = (e) => {
+    setValue(e.target.value)
+  }
 
-    const onChange = (e) => {
-        setValue(e.target.value)
+  const reset = () => {
+    setValue('')
+  }
 
-        return {
-            type,
-            value,
-            onChange
-        }
-    }
+  return {
+    type,
+    value,
+    onChange,
+    reset,
+  }
 }
 
-export default useField
+export const useAnecdotes = () => {
+  const [anecdotes, setAnecdotes] = useState([])
+
+  useEffect(() => {
+    anecdoteService.getAll().then(data => setAnecdotes(data))
+  }, [])
+
+  const addAnecdote = async (anecdoteObject) => {
+    const saved = await anecdoteService.createNew(anecdoteObject)
+    setAnecdotes(anecdotes.concat(saved))
+  }
+
+  const deleteAnecdote = async (id) => {
+    await anecdoteService.remove(id)
+    setAnecdotes(anecdotes.filter(n => n.id !== id))
+  }
+
+  return { anecdotes, addAnecdote, deleteAnecdote }
+}
+
+
 /*
 
 Write the useField custom hook from the material 
