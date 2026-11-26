@@ -1,14 +1,22 @@
 import ReactDOM from 'react-dom/client'
-import App from './App'
-import './index.css'
 import { BrowserRouter as Router } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import App from './App'
+import { NotificationContextProvider } from './contexts/NotificationContext'
+import { UserContextProvider } from './contexts/UserContext'
+import './index.css'
+
+// The cache for server data (blogs and users). Created once, outside any component.
+const queryClient = new QueryClient()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-
   <Router>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <NotificationContextProvider>
+        <UserContextProvider>
+          <App />
+        </UserContextProvider>
+      </NotificationContextProvider>
+    </QueryClientProvider>
   </Router>
 )
-
-//Logic behind this is useMatch requires that the component in which it exists must not be what defined
-//The router, as it answers this result to the Router, and so thus we must put <App> within a <Router>

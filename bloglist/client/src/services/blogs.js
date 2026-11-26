@@ -41,4 +41,10 @@ const remove = async (id) => {
   return response
 }
 
-export default { getAll, create, update, remove, setToken }
+// Comments are anonymous, so no token is sent.
+const addComment = async (id, comment) => {
+  const response = await axios.post(`${baseUrl}/${id}/comments`, { comment })
+  return response.data
+}
+
+export default { getAll, create, update, remove, addComment, setToken }

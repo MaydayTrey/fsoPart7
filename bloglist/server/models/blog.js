@@ -18,7 +18,9 @@ const blogSchema = new mongoose.Schema({
   user: {
     type:  mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }
+  },
+  //Anonymous comments: plain strings, not tied to any user
+  comments: [String]
 })
 
 blogSchema.set('toJSON', {

@@ -96,6 +96,25 @@ blogRouter.put('/:id', async (request, response) => {
     response.status(200).json(updatedBlog)
 })
 
+// ---- ADDING A COMMENT TO A BLOG ---- //
+//Comments are anonymous, so there is no userExtractor on this route.
+blogRouter.post('/:id/comments', async (request, response) => {
+    const { comment } = request.body
+    if (!comment || !comment.trim()) {
+        return response.status(400).json({ error: 'A comment cannot be empty.' })
+    }
+
+    const blog = await Blog.findById(request.params.id)
+    if (!blog) {
+        return response.status(404).json({ error: 'The blog you want to comment on is not found' })
+    }
+
+    blog.comments = blog.comments.concat(comment)
+    const savedBlog = await blog.save()
+    const populatedBlog = await savedBlog.populate('user', { username: 1, name: 1 })
+    response.status(201).json(populatedBlog)
+})
+
 //Issues with the PUT; 
 //There was no .then, so the request would hang forever. 
 /*

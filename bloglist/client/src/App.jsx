@@ -1,49 +1,31 @@
-// App.jsx
-import { useState, useEffect } from 'react'
 import { Routes, Route, Link, useNavigate } from 'react-router-dom'
+import { Container, AppBar, Toolbar, Button } from '@mui/material'
 import Blogs from './components/Blogs'
 import BlogView from './components/BlogView'
-import Login from './components/Login'
-import Notification from './components/Notification'
 import BlogForm from './components/BlogForm'
-import blogService from './services/blogs'
-import loginService from './services/login'
-import { Container, AppBar, Toolbar, Button } from '@mui/material'
-
+import Login from './components/Login'
+import Users from './components/Users'
+import User from './components/User'
+import Notification from './components/Notification'
+import NotFound from './components/NotFound'
+import ErrorBoundary from './components/ErrorBoundary'
+import { useBlogs } from './hooks/useBlogs'
+import { useNotify } from './contexts/NotificationContext'
+import { useUser, useAuth } from './contexts/UserContext'
 
 const App = () => {
-  const [blogs, setBlogs] = useState([])
-  const [user, setUser] = useState(null)
-  const [messageStatus, setMessageStatus] = useState('')
-  const [message, setMessage] = useState(null)
+  // Server state: TanStack Query, wrapped in a custom hook.
+  const { blogs, isPending, createBlog, likeBlog, removeBlog, addComment } = useBlogs()
+  // Client state: Context.
+  const user = useUser()
+  const { login, logout } = useAuth()
+  const notify = useNotify()
 
   const navigate = useNavigate()
 
-  useEffect(() => {
-    blogService.getAll().then(blogs => setBlogs(blogs))
-  }, [])
-
-  useEffect(() => {
-    const loggedUserJSON = window.localStorage.getItem('loggedUser')
-    if (loggedUserJSON) {
-      const user = JSON.parse(loggedUserJSON)
-      setUser(user)
-      blogService.setToken(user.token)
-    }
-  }, [])
-
-  const notify = (text, status) => {
-    setMessage(text)
-    setMessageStatus(status)
-    setTimeout(() => setMessage(null), 5000)
-  }
-
   const handleLogin = async (credentials) => {
     try {
-      const user = await loginService.login(credentials)
-      window.localStorage.setItem('loggedUser', JSON.stringify(user))
-      setUser(user)
-      blogService.setToken(user.token)
+      await login(credentials)
       navigate('/')
     } catch {
       notify('Failed to login!', 'error')
@@ -51,42 +33,50 @@ const App = () => {
   }
 
   const handleLogout = () => {
-    setUser(null)
-    window.localStorage.removeItem('loggedUser')
-    blogService.setToken(null)
+    logout()
     navigate('/')
   }
 
   const handleCreate = async (blogObject) => {
-    const returnBlog = await blogService.create(blogObject)
-    setBlogs(blogs.concat(returnBlog))
-    notify(`Blog successfully created. ${blogObject.title} by ${blogObject.author}`, 'success')
-    navigate('/')
+    try {
+      await createBlog(blogObject)
+      notify(`Blog successfully created. ${blogObject.title} by ${blogObject.author}`, 'success')
+      navigate('/')
+    } catch {
+      notify('Failed to create the blog.', 'error')
+    }
   }
 
   const handleDelete = async (blogObject) => {
     if (!window.confirm(`Remove blog ${blogObject.title} by ${blogObject.author}?`)) {
       return
     }
-    await blogService.remove(blogObject.id)
-    setBlogs(blogs.filter(b => b.id !== blogObject.id))
-    navigate('/')
+    try {
+      await removeBlog(blogObject)
+      navigate('/')
+    } catch {
+      notify('Failed to remove the blog.', 'error')
+    }
   }
 
   const handleLike = async (blogObject) => {
-    const updatedBlog = {
-      title: blogObject.title,
-      author: blogObject.author,
-      url: blogObject.url,
-      likes: blogObject.likes + 1,
-      user: blogObject.user.id
+    try {
+      await likeBlog(blogObject)
+    } catch {
+      notify('Failed to like the blog.', 'error')
     }
-    const returnedBlog = await blogService.update(blogObject.id, updatedBlog)
-    setBlogs(blogs.map(b => b.id === blogObject.id ? returnedBlog : b))
   }
 
+  const handleComment = async (blogObject, comment) => {
+    try {
+      await addComment(blogObject.id, comment)
+    } catch {
+      notify('Failed to add the comment.', 'error')
+    }
+  }
 
-
+  // The navigation bar is outside the ErrorBoundary, so it keeps working
+  // even when something inside the boundary crashes.
   return (
     <Container>
       <AppBar position="static">
@@ -94,10 +84,13 @@ const App = () => {
           <Button color="inherit" component={Link} to="/">
             blogs
           </Button>
+          <Button color="inherit" component={Link} to="/users">
+            users
+          </Button>
           {user
             ? <>
               <Button color="inherit" component={Link} to="/create">
-                create new
+                new blog
               </Button>
               <em style={{ marginLeft: 10, marginRight: 10 }}>
                 {user.name} logged in
@@ -113,21 +106,29 @@ const App = () => {
         </Toolbar>
       </AppBar>
 
-      <Notification type={messageStatus} message={message} />
+      <ErrorBoundary>
+        <Notification />
 
-      <Routes>
-        <Route path="/" element={<Blogs blogs={blogs} />} />
-        <Route path="/login" element={<Login handleLogin={handleLogin} />} />
-        <Route path="/create" element={<BlogForm createBlog={handleCreate} />} />
-        <Route path="/blogs/:id" element={
-          <BlogView
-            blogs={blogs}
-            handleLike={handleLike}
-            handleDelete={handleDelete}
-            username={user?.username}
-          />
-        } />
-      </Routes>
+        <Routes>
+          <Route path="/" element={<Blogs blogs={blogs} />} />
+          <Route path="/login" element={<Login handleLogin={handleLogin} />} />
+          <Route path="/create" element={<BlogForm createBlog={handleCreate} />} />
+          <Route path="/blogs/:id" element={
+            isPending
+              ? <div>loading...</div>
+              : <BlogView
+                blogs={blogs}
+                handleLike={handleLike}
+                handleDelete={handleDelete}
+                addComment={handleComment}
+                username={user?.username}
+              />
+          } />
+          <Route path="/users" element={<Users />} />
+          <Route path="/users/:id" element={<User />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </ErrorBoundary>
     </Container>
   )
 }

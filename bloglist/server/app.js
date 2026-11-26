@@ -2,25 +2,15 @@
 //The parts of the pipeline assembles them, then hands it to index.js
 const express = require('express')
 const mongoose = require('mongoose')
+const path = require('path')
 const config = require('./utils/config')
 const logger = require('./utils/logger')
 const middleware = require('./utils/middleware')
 const blogRouter = require('./controllers/blogs')
 const usersRouter = require('./controllers/users')
 const loginRouter = require('./controllers/login')
-const testingRouter = require('./controllers/testing')
 
 const app = express()
-const path = require('path')
-
-// serve the built Vite frontend in prod mode
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')))
-  app.get('/*splat', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'))
-  })
-}
-
 
 logger.info('connecting')
 
@@ -47,10 +37,17 @@ if (process.env.NODE_ENV === 'test') {
   app.use('/api/testing', testingRouter)
 }
 
+// serve the built Vite frontend in prod mode
+// This has to come AFTER the API routers: the /*splat route answers every GET
+// it sees, so placed above them it would return index.html for /api/blogs too.
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')))
+  app.get('/*splat', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'))
+  })
+}
+
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)
-
-
-
 
 module.exports = app
