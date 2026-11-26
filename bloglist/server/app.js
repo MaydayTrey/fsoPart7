@@ -11,6 +11,15 @@ const loginRouter = require('./controllers/login')
 const testingRouter = require('./controllers/testing')
 
 const app = express()
+const path = require('path')
+
+// serve the built Vite frontend in prod mode
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../client/dist')))
+  app.get('/*splat', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'))
+  })
+}
 
 
 logger.info('connecting')
